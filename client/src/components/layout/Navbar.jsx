@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Link } from 'react-router';
+import CartLink from './CartLink';
 
 const LINKS = [
   { to: '/', label: 'Home', end: true },
@@ -34,19 +35,22 @@ export default function Navbar() {
               {link.label}
             </NavLink>
           ))}
-          {/* Cart link slot — filled in Phase 4. */}
+          <CartLink />
         </div>
 
-        {/* Mobile toggle */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls="mobile-nav"
-          className="rounded-full px-3 py-2 text-sm font-semibold text-brand-ink hover:bg-brand-ink/5 md:hidden"
-        >
-          {open ? 'Close' : 'Menu'}
-        </button>
+        {/* Mobile: cart stays visible, links collapse behind the toggle. */}
+        <div className="flex items-center gap-1 md:hidden">
+          <CartLink onNavigate={close} />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls="mobile-nav"
+            className="rounded-full px-3 py-2 text-sm font-semibold text-brand-ink hover:bg-brand-ink/5"
+          >
+            {open ? 'Close' : 'Menu'}
+          </button>
+        </div>
       </nav>
 
       {open && (
