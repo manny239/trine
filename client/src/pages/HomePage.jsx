@@ -2,28 +2,29 @@ import { Link } from 'react-router';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
+import DishGrid from '../components/menu/DishGrid';
 import { useFetch } from '../hooks/useFetch';
-import { getHealth } from '../api/client';
+import { getMenu } from '../api/client';
 
-/**
- * Kitchen status strip — a live call through the Vite proxy to the Express API.
- * Phase 3 replaces this section with real featured dishes.
- */
-function KitchenStatus() {
-  const { data, loading, error, retry } = useFetch(({ signal }) => getHealth({ signal }), []);
+/** The dishes flagged `featured` in the menu data. */
+function FeaturedDishes() {
+  const { data, loading, error, retry } = useFetch(({ signal }) => getMenu(undefined, { signal }), []);
+  const featured = (data ?? []).filter((dish) => dish.featured);
 
-  if (loading) return <Spinner label="Checking whether the kitchen is open…" />;
+  if (loading) return <Spinner className="py-16" label="Loading featured dishes…" />;
   if (error) {
-    return <ErrorMessage title="Kitchen unreachable" message={error} onRetry={retry} />;
+    return <ErrorMessage title="Could not load the menu" message={error} onRetry={retry} />;
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 rounded-2xl border border-brand-green/20 bg-brand-green/5 px-6 py-4">
-      <span className="h-2.5 w-2.5 rounded-full bg-brand-green" aria-hidden="true" />
-      <p className="font-semibold text-brand-green">
-        {data?.ok ? 'Kitchen is open — menu is live' : 'Kitchen responded, but something looks off'}
-      </p>
-    </div>
+    <>
+      <DishGrid dishes={featured} emptyMessage="No featured dishes right now." />
+      <div className="mt-10 flex justify-center">
+        <Button as={Link} to="/menu" size="lg">
+          View full menu
+        </Button>
+      </div>
+    </>
   );
 }
 
@@ -55,7 +56,13 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-8">
-        <KitchenStatus />
+        <header className="mb-8">
+          <h2 className="text-3xl font-extrabold text-brand-ink">Featured dishes</h2>
+          <p className="mt-2 text-brand-ink/70">
+            The plates our regulars keep coming back for.
+          </p>
+        </header>
+        <FeaturedDishes />
       </section>
     </div>
   );
