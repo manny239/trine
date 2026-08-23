@@ -8,6 +8,7 @@ import QuantityStepper from '../components/ui/QuantityStepper';
 import DishImage from '../components/menu/DishImage';
 import DishBadges from '../components/menu/DishBadges';
 import { useFetch } from '../hooks/useFetch';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { getDish } from '../api/client';
 import { useCart } from '../hooks/useCart';
 import { formatPrice } from '../utils/format';
@@ -97,6 +98,8 @@ export default function DishDetailPage() {
     ({ signal }) => getDish(slug, { signal }),
     [slug],
   );
+
+  usePageTitle(dish?.name ?? 'Dish');
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">

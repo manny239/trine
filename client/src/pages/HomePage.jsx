@@ -5,6 +5,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import DishGrid from '../components/menu/DishGrid';
 import { useFetch } from '../hooks/useFetch';
 import { getMenu } from '../api/client';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /** The dishes flagged `featured` in the menu data. */
 function FeaturedDishes() {
@@ -29,6 +30,7 @@ function FeaturedDishes() {
 }
 
 export default function HomePage() {
+  usePageTitle(null);
   return (
     <div>
       <section className="bg-brand-cream">

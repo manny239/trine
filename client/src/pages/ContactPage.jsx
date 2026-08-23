@@ -1,3 +1,5 @@
+import { usePageTitle } from '../hooks/usePageTitle';
+
 const HOURS = [
   ['Monday – Thursday', '11:00am – 9:00pm'],
   ['Friday', '11:00am – 10:00pm'],
@@ -6,6 +8,7 @@ const HOURS = [
 ];
 
 export default function ContactPage() {
+  usePageTitle('Visit us');
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
       <h1 className="text-4xl font-extrabold text-brand-ink">Visit Us</h1>

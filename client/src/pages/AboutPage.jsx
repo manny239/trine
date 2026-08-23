@@ -1,3 +1,5 @@
+import { usePageTitle } from '../hooks/usePageTitle';
+
 const SECTIONS = [
   {
     title: 'Food as heritage',
@@ -18,6 +20,7 @@ const SECTIONS = [
 ];
 
 export default function AboutPage() {
+  usePageTitle('Our story');
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
       <h1 className="text-4xl font-extrabold text-brand-ink">Our Story</h1>

@@ -1,8 +1,8 @@
 import Button from '../ui/Button';
 import { formatPrice } from '../../utils/format';
 
-/** Totals panel. "Place order" is intentionally inert until Phase 5. */
-export default function CartSummary({ subtotal, onClear }) {
+/** Totals panel; "Place order" opens the checkout form. */
+export default function CartSummary({ subtotal, onClear, onCheckout, checkingOut = false }) {
   return (
     <aside className="rounded-2xl bg-white p-6 ring-1 ring-brand-ink/10">
       <h2 className="text-lg font-bold text-brand-ink">Order summary</h2>
@@ -15,9 +15,12 @@ export default function CartSummary({ subtotal, onClear }) {
       </div>
       <p className="mt-2 text-sm text-brand-ink/50">Taxes calculated at pickup.</p>
 
-      <Button className="mt-6 w-full" size="lg" disabled title="Checkout arrives in Phase 5">
-        Place order
-      </Button>
+      {/* While the checkout form is open it owns the submit button. */}
+      {!checkingOut && (
+        <Button className="mt-6 w-full" size="lg" onClick={onCheckout}>
+          Place order
+        </Button>
+      )}
 
       <Button variant="ghost" className="mt-2 w-full" onClick={onClear}>
         Clear cart

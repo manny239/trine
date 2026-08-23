@@ -1,7 +1,9 @@
 import { Link } from 'react-router';
 import Button from '../components/ui/Button';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function NotFoundPage() {
+  usePageTitle('Page not found');
   return (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
       <p className="text-6xl font-extrabold text-brand-gold">404</p>

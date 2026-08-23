@@ -7,8 +7,10 @@ import { useMenu } from '../hooks/useMenu';
 import { useFetch } from '../hooks/useFetch';
 import { getCategories } from '../api/client';
 import { pluralizeDishes } from '../utils/format';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function MenuPage() {
+  usePageTitle('Menu');
   const {
     dishes,
     allDishes,
