@@ -1,0 +1,388 @@
+# Phase 1 — Backend + Menu Data
+
+> **Deliverable when this phase closes:** a fully working, curl-tested Express API serving the complete Ghanaian menu from a JSON file, committed to git. Nothing frontend-related is built yet.
+
+## Project context (shared across all phases — read first)
+
+We are building a Ghanaian restaurant web app in this repo (`Trine/`).
+
+- **Stack:** React 19 + Vite (**JavaScript, NOT TypeScript**), Tailwind CSS v4, react-router on the frontend. Fake backend: **Express 5** serving menu items from `server/data/menu.json` (no database — the JSON file plays the role Mongo would in a MERN app; everything else follows MERN structure: routes/controllers on the server, components/hooks/context on the client).
+- **Two servers:** Express API on `http://localhost:4000`, Vite dev server on `http://localhost:5173` (Vite proxies `/api` → `:4000`). Root `npm run dev` runs both via `concurrently`, using npm workspaces `client` and `server`.
+- **Conventions:** modular, reusable code; small focused files; loading/error cases always handled. Menu prices are always computed server-side from `menu.json` — never trust client-supplied prices.
+- **Phase docs** live in `docs/plans/phase-1..5.md`. Do ONLY this phase's work. The phase must end fully working, verified per the checklist below, and committed.
+
+## Before you start
+
+This is the first phase. The repo should contain only `docs/plans/*.md` (and possibly a plan-related commit). If server code already exists, STOP and re-read — you may be in the wrong phase.
+
+## Tasks
+
+### 1. Root workspace setup
+
+Create root `package.json`:
+
+```json
+{
+  "name": "trine",
+  "private": true,
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "dev": "npm run dev -w server",
+    "dev:server": "npm run dev -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
+```
+
+Note: `dev` runs only the server for now; Phase 2 changes it to `concurrently "npm run dev -w server" "npm run dev -w client"`.
+
+Create `.gitignore` (node_modules, dist, .env, .DS_Store) and a stub `README.md` (project name, one-line description, "see docs/plans/ for the build plan" — the full README is written in Phase 5).
+
+### 2. Server workspace
+
+`server/package.json`:
+
+```json
+{
+  "name": "server",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "node --watch index.js", "start": "node index.js" },
+  "dependencies": { "express": "^5.0.0", "cors": "^2.8.5" }
+}
+```
+
+Files (ES modules throughout):
+
+- **`server/index.js`** — creates the Express app; `cors()`, `express.json()`; a simulated-latency middleware (`setTimeout` ~300ms) applied to `/api` routes so frontend loading states are visible in dev; mounts `menu.routes.js` and `order.routes.js` under `/api`; `GET /api/health` → `{ "ok": true }`; JSON 404 handler for unknown `/api/*` paths; listens on `process.env.PORT || 4000` and logs the URL.
+- **`server/data/menu.json`** — the exact JSON in the "Menu data" section below.
+- **`server/controllers/menu.controller.js`** — loads `menu.json` once at startup (`fs.readFileSync` + `JSON.parse` is fine). Exports:
+  - `getMenu(req, res)` — all items; supports `?category=` (exact match, case-insensitive) and `?q=` (case-insensitive substring match against name, localName, description, tags).
+  - `getDish(req, res)` — matches `req.params.idOrSlug` against `id` OR `slug`; 404 `{ "error": "Dish not found" }` if missing.
+  - `getCategories(req, res)` — distinct `category` values in menu order, e.g. `["Soups & Stews", "Rice & Mains", ...]`.
+- **`server/controllers/order.controller.js`** — in-memory `orders` array (resets on restart — fine for a fake backend). Exports:
+  - `createOrder(req, res)` — body shape: `{ "customer": { "name": "...", "phone": "...", "fulfillment": "pickup" | "delivery" }, "items": [{ "id": "...", "qty": 2 }] }`. Validate: customer.name and customer.phone are non-empty strings, fulfillment is one of the two values, items is a non-empty array, every qty is an integer ≥ 1, every id exists in the menu. On any failure → 400 `{ "error": "<specific message>" }`. On success: compute `total` from menu.json prices (2-decimal rounding), store `{ orderId, customer, items (with name & unit price snapshot), total, status: "received", createdAt }`, respond 201 `{ "orderId": "...", "total": 42.97, "status": "received" }`. Generate `orderId` like `ord_<timestamp>_<counter>`.
+  - `getOrder(req, res)` — returns the stored order or 404 JSON.
+- **`server/routes/menu.routes.js`** — `GET /menu`, `GET /menu/:idOrSlug`, `GET /categories` → menu controller.
+- **`server/routes/order.routes.js`** — `POST /orders`, `GET /orders/:id` → order controller.
+
+## Menu data (write EXACTLY this to `server/data/menu.json`)
+
+This menu is dictated by CookUnity's "Ghanaian food guide: 10 traditional dishes to try" article. Do not re-fetch the article; the data below is the source of truth.
+
+```json
+[
+  {
+    "id": "1",
+    "slug": "peanut-soup",
+    "name": "Peanut Soup",
+    "localName": "Nkatie Nkwan",
+    "category": "Soups & Stews",
+    "price": 15.99,
+    "description": "A creamy, protein-rich soup made by simmering ground peanuts with tomatoes, onions, and peppers. Served with fufu or rice for a hearty, deeply satisfying meal.",
+    "culturalNote": "A dish of comfort and community, often prepared for family gatherings and special occasions. Northern Ghanaian versions are thicker and spicier, reflecting local taste.",
+    "accompaniments": ["fufu", "rice"],
+    "tags": ["popular", "comfort-food"],
+    "spicyLevel": 1,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_3_4fc885521b.jpg",
+    "featured": true
+  },
+  {
+    "id": "2",
+    "slug": "light-soup",
+    "name": "Light Soup",
+    "localName": null,
+    "category": "Soups & Stews",
+    "price": 13.99,
+    "description": "A richly flavored broth made with meat or fish, tomatoes, peppers, and herbs. Despite its name, it is full-bodied and aromatic — the classic partner to fufu.",
+    "culturalNote": "The traditional pairing for fufu; its bold, aromatic broth is the perfect contrast to fufu's neutral, comforting texture.",
+    "accompaniments": ["fufu"],
+    "tags": ["broth"],
+    "spicyLevel": 2,
+    "isVegan": false,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "3",
+    "slug": "okra-soup",
+    "name": "Okra Soup",
+    "localName": null,
+    "category": "Soups & Stews",
+    "price": 14.49,
+    "description": "A classic soup of fresh or dried okra with fish or meat, palm oil, and aromatic spices, loved for its distinctive slippery 'draw' texture. Ideal with banku or fufu.",
+    "culturalNote": "Long valued for its medicinal properties, okra soup reflects the holistic nature of food in Ghanaian culture, nourishing both body and well-being.",
+    "accompaniments": ["banku", "fufu"],
+    "tags": ["classic"],
+    "spicyLevel": 1,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_single_5a1c6fa497.jpg",
+    "featured": false
+  },
+  {
+    "id": "4",
+    "slug": "red-red",
+    "name": "Red Red",
+    "localName": null,
+    "category": "Soups & Stews",
+    "price": 13.49,
+    "description": "Black-eyed peas stewed with red palm oil, onions, and tomatoes, giving the dish its iconic vibrant color. Traditionally served with fried ripe plantains. Naturally vegan and protein-rich.",
+    "culturalNote": "An everyday meal that embodies the wisdom and resourcefulness of Ghanaian cooking — affordable, hearty, and a favorite at family tables and street stalls alike.",
+    "accompaniments": ["fried plantains"],
+    "tags": ["vegan", "popular", "street-food"],
+    "spicyLevel": 1,
+    "isVegan": true,
+    "image": null,
+    "featured": true
+  },
+  {
+    "id": "5",
+    "slug": "jollof-rice",
+    "name": "Jollof Rice",
+    "localName": null,
+    "category": "Rice & Mains",
+    "price": 14.99,
+    "description": "Ghana's most famous one-pot meal: rice simmered in a spiced tomato sauce until every grain absorbs the rich, savory flavors, with meat, vegetables, and aromatic spices giving it its signature orange-red color.",
+    "culturalNote": "No Ghanaian celebration is complete without jollof — and the playful 'Jollof Wars' with Nigeria and Senegal show just how much pride surrounds this dish.",
+    "accompaniments": ["chicken", "fried plantains", "shito"],
+    "tags": ["popular", "celebration"],
+    "spicyLevel": 2,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_6_3e18728437.jpg",
+    "featured": true
+  },
+  {
+    "id": "6",
+    "slug": "waakye",
+    "name": "Waakye",
+    "localName": "waa-chay",
+    "category": "Rice & Mains",
+    "price": 14.99,
+    "description": "Rice and beans cooked together with dried sorghum leaves, which give the dish its signature reddish-brown color. Served with an array of accompaniments: spaghetti, gari, fried plantains, and boiled eggs.",
+    "culturalNote": "One of Ghana's most popular breakfast and lunch options — affordable, nourishing street food that brings people of all backgrounds together.",
+    "accompaniments": ["spaghetti", "gari", "fried plantains", "boiled egg", "shito"],
+    "tags": ["popular", "street-food"],
+    "spicyLevel": 1,
+    "isVegan": false,
+    "image": null,
+    "featured": true
+  },
+  {
+    "id": "7",
+    "slug": "fufu-light-soup",
+    "name": "Fufu & Light Soup",
+    "localName": null,
+    "category": "Rice & Mains",
+    "price": 16.99,
+    "description": "A smooth, stretchy dough made by pounding boiled cassava and plantains together, served in a richly flavored light soup of meat or fish, tomatoes, peppers, and herbs.",
+    "culturalNote": "Eaten by hand: pinch off a piece of fufu, shape it into a ball, and scoop the soup. For generations the evening sound of fufu being pounded served as a communal dinner bell across Ghanaian neighborhoods.",
+    "accompaniments": ["goat", "chicken", "fish"],
+    "tags": ["popular", "traditional", "eaten-by-hand"],
+    "spicyLevel": 2,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_4_e7125f43b2.jpg",
+    "featured": true
+  },
+  {
+    "id": "8",
+    "slug": "banku-tilapia",
+    "name": "Banku & Grilled Tilapia",
+    "localName": null,
+    "category": "Rice & Mains",
+    "price": 18.99,
+    "description": "Fermented corn-and-cassava dough cooked into a smooth, slightly sour ball with a stretchy texture, served with grilled tilapia and shito pepper sauce. The fermentation gives banku its distinctive tang.",
+    "culturalNote": "A coastal favorite symbolizing the harmony of land and sea: fermented dough from agricultural tradition, fresh fish honoring Ghana's rich fishing heritage.",
+    "accompaniments": ["grilled tilapia", "shito", "fresh pepper sauce"],
+    "tags": ["popular", "coastal", "grilled"],
+    "spicyLevel": 2,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_5_b89aab2f50.jpg",
+    "featured": true
+  },
+  {
+    "id": "9",
+    "slug": "kenkey-fried-fish",
+    "name": "Kenkey & Fried Fish",
+    "localName": null,
+    "category": "Rice & Mains",
+    "price": 16.49,
+    "description": "Fermented corn dough wrapped in corn husks or banana leaves and steamed, served with fried fish, fresh pepper sauce, and shito. Choose slightly sour Ga kenkey or the milder Fante kenkey.",
+    "culturalNote": "The fermentation and wrapping process reflects indigenous food preservation techniques developed long before refrigeration — the ingenuity of Ghanaian cuisine on a plate.",
+    "accompaniments": ["fried fish", "fresh pepper sauce", "shito"],
+    "tags": ["traditional", "fermented"],
+    "spicyLevel": 2,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_9_092eff8ffa.jpg",
+    "featured": false
+  },
+  {
+    "id": "10",
+    "slug": "tuo-zaafi",
+    "name": "Tuo Zaafi",
+    "localName": null,
+    "category": "Rice & Mains",
+    "price": 15.49,
+    "description": "A northern Ghanaian staple of millet, corn, or cassava flour cooked into a thick, smooth porridge, served with ayoyo (jute leaf) soup or okro soup for a distinctive earthy flavor.",
+    "culturalNote": "A staple of northern ethnic groups such as the Dagomba and Mamprusi. Preparing it demands skill and endurance — the porridge is stirred continuously to reach the right consistency.",
+    "accompaniments": ["ayoyo soup", "okro soup"],
+    "tags": ["northern", "traditional"],
+    "spicyLevel": 1,
+    "isVegan": false,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_10_aafc82f3ff.jpg",
+    "featured": false
+  },
+  {
+    "id": "11",
+    "slug": "kelewele",
+    "name": "Kelewele",
+    "localName": null,
+    "category": "Street Food & Sides",
+    "price": 6.99,
+    "description": "Ripe plantain cubes marinated with ginger, garlic, cayenne pepper, and a hint of anise, then deep-fried until golden and caramelized. Sweet, fiery, and addictive.",
+    "culturalNote": "A beloved street food sold at markets and roadside stalls, often enjoyed late into the night — Ghana's talent for turning simple ingredients into bold flavor experiences.",
+    "accompaniments": ["roasted peanuts"],
+    "tags": ["vegan", "street-food", "spicy", "popular"],
+    "spicyLevel": 2,
+    "isVegan": true,
+    "image": "https://cu-website-cms-prd.s3.us-east-1.amazonaws.com/resized_batch2_8_10a218c09a.jpg",
+    "featured": true
+  },
+  {
+    "id": "12",
+    "slug": "fried-plantains",
+    "name": "Fried Ripe Plantains",
+    "localName": null,
+    "category": "Street Food & Sides",
+    "price": 4.99,
+    "description": "Sweet ripe plantains fried until golden and caramelized at the edges. The classic partner to red red and a side that goes with everything.",
+    "culturalNote": "Plantains are a cornerstone of Ghanaian cuisine — both ripe and unripe, they appear in countless forms across everyday meals.",
+    "accompaniments": [],
+    "tags": ["vegan", "side"],
+    "spicyLevel": 0,
+    "isVegan": true,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "13",
+    "slug": "gari",
+    "name": "Gari",
+    "localName": null,
+    "category": "Street Food & Sides",
+    "price": 2.99,
+    "description": "Fermented cassava granules with a light crunch and gentle tang — spoon it over waakye or beans for texture.",
+    "culturalNote": "Cassava is one of Ghana's most versatile staples; processing it into gari showcases traditional preservation at its simplest.",
+    "accompaniments": [],
+    "tags": ["vegan", "side"],
+    "spicyLevel": 0,
+    "isVegan": true,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "14",
+    "slug": "shito",
+    "name": "Shito Pepper Sauce",
+    "localName": null,
+    "category": "Street Food & Sides",
+    "price": 1.99,
+    "description": "Ghana's famous dark, deeply savory hot pepper sauce. A spoonful transforms banku, kenkey, waakye, or rice.",
+    "culturalNote": "Known locally as shito ('pepper' in Ga), it is the essential condiment of coastal Ghanaian cooking.",
+    "accompaniments": [],
+    "tags": ["spicy", "condiment"],
+    "spicyLevel": 3,
+    "isVegan": false,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "15",
+    "slug": "tubani",
+    "name": "Tubani",
+    "localName": null,
+    "category": "Street Food & Sides",
+    "price": 5.99,
+    "description": "A steamed bean pudding made from bambara beans or black-eyed peas — soft, savory, and protein-rich.",
+    "culturalNote": "Beans like black-eyed peas and bambara beans are central to the Ghanaian diet, providing essential protein in beloved everyday dishes.",
+    "accompaniments": ["pepper oil"],
+    "tags": ["vegan", "steamed"],
+    "spicyLevel": 0,
+    "isVegan": true,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "16",
+    "slug": "hausa-koko",
+    "name": "Hausa Koko",
+    "localName": null,
+    "category": "Breakfast",
+    "price": 6.49,
+    "description": "A silky spiced millet porridge warmed with ginger and local spices — a classic Ghanaian breakfast that provides sustained energy for the day.",
+    "culturalNote": "A morning staple across Ghana, often bought steaming hot from neighborhood vendors at dawn.",
+    "accompaniments": ["koose", "bread"],
+    "tags": ["vegan", "breakfast", "porridge"],
+    "spicyLevel": 1,
+    "isVegan": true,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "17",
+    "slug": "kooko-koose",
+    "name": "Kooko & Koose",
+    "localName": null,
+    "category": "Breakfast",
+    "price": 7.99,
+    "description": "Smooth millet porridge (kooko) served with koose — crispy, fluffy fried bean cakes. A comforting breakfast pairing.",
+    "culturalNote": "A typical Ghanaian breakfast combination, prized for keeping you full through a busy morning.",
+    "accompaniments": ["sugar", "groundnuts"],
+    "tags": ["vegan", "breakfast"],
+    "spicyLevel": 0,
+    "isVegan": true,
+    "image": null,
+    "featured": false
+  },
+  {
+    "id": "18",
+    "slug": "waakye-breakfast",
+    "name": "Waakye with Eggs",
+    "localName": null,
+    "category": "Breakfast",
+    "price": 10.99,
+    "description": "A breakfast portion of waakye — rice and beans tinted reddish-brown by sorghum leaves — topped with boiled eggs and sauce.",
+    "culturalNote": "Waakye with eggs and sauce is one of Ghana's favorite ways to start the day with sustained energy.",
+    "accompaniments": ["boiled egg", "gari", "shito"],
+    "tags": ["breakfast", "street-food"],
+    "spicyLevel": 1,
+    "isVegan": false,
+    "image": null,
+    "featured": false
+  }
+]
+```
+
+## Definition of Done — verify ALL of these, then commit
+
+Run from the repo root:
+
+1. `npm install` succeeds.
+2. `npm run dev` starts the server; it logs that it's listening on port 4000.
+3. Endpoint checks (each returns the expected JSON):
+   - `curl -s localhost:4000/api/health` → `{"ok":true}`
+   - `curl -s localhost:4000/api/menu` → array of 18 items
+   - `curl -s "localhost:4000/api/menu?category=Breakfast"` → 3 items
+   - `curl -s "localhost:4000/api/menu?q=plantain"` → includes kelewele and fried-plantains
+   - `curl -s localhost:4000/api/menu/waakye` and `curl -s localhost:4000/api/menu/6` → the same waakye object
+   - `curl -s localhost:4000/api/menu/pizza` → HTTP 404 with `{"error":"Dish not found"}`
+   - `curl -s localhost:4000/api/categories` → `["Soups & Stews","Rice & Mains","Street Food & Sides","Breakfast"]`
+   - `curl -s -X POST localhost:4000/api/orders -H 'Content-Type: application/json' -d '{"customer":{"name":"Ama","phone":"0244000000","fulfillment":"pickup"},"items":[{"id":"5","qty":2},{"id":"11","qty":1}]}'` → 201 with `orderId`, `total` 36.97, `status` "received"
+   - Same POST with empty items, missing name, qty 0, or unknown item id → HTTP 400 with a specific `{"error": ...}` message
+   - `curl -s localhost:4000/api/orders/<orderId from above>` → the stored order
+4. Responses have the ~300ms artificial delay (perceptible, not exact).
+5. `git add -A && git commit` with a message like `Phase 1: Express fake backend serving Ghanaian menu from JSON`.
+
+**Do not** start any frontend work — that is Phase 2 (`docs/plans/phase-2-frontend-foundation.md`).
