@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-red: #c1272d;    /* Ghana flag red */
+  --color-brand-gold: #f2a900;   /* Ghana flag gold */
+  --color-brand-green: #006b3f;  /* Ghana flag green */
+  --color-brand-cream: #fdf8f0;  /* warm page background */
+  --color-brand-ink: #241a12;    /* warm near-black text */
+}
+
+body {
+  background-color: var(--color-brand-cream);
+  color: var(--color-brand-ink);
+}
